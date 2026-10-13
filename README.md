@@ -1,6 +1,8 @@
-# The Chronicle
+# KingGame
 
 A **dynastic life simulator first, game second**: a small medieval realm where families, marriages, inheritance, and personality-driven choices write their own history. The chronicle **observes** the simulation—it does not invent events.
+
+**Design and roadmap:** [docs/design/README.md](docs/design/README.md)
 
 ## Phase 1 (this prototype)
 
