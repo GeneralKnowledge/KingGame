@@ -1,9 +1,16 @@
+<<<<<<< HEAD
 # KingGame
 
 A **dynastic life simulator first, game second**: a small medieval realm where families, marriages, inheritance, and personality-driven choices write their own history. The chronicle **observes** the simulation—it does not invent events.
 
 **Design and roadmap:** [docs/design/README.md](docs/design/README.md)
 
+=======
+# The Chronicle
+
+A **dynastic life simulator first, game second**: a small medieval realm where families, marriages, inheritance, and personality-driven choices write their own history. The chronicle **observes** the simulation—it does not invent events.
+
+>>>>>>> origin/main
 ## Phase 1 (this prototype)
 
 - Haldenmere county with three lordships and eight noble houses (~200 characters)
