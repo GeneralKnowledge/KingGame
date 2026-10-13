@@ -1,16 +1,9 @@
-<<<<<<< HEAD
 # KingGame
 
-A **dynastic life simulator first, game second**: a small medieval realm where families, marriages, inheritance, and personality-driven choices write their own history. The chronicle **observes** the simulation—it does not invent events.
+A **dynastic life simulator first, game second**: a small medieval realm where families, marriages, inheritance, and personality-driven choices write their own history. The in-game chronicle (**The Chronicle** observer UI) **observes** the simulation—it does not invent events.
 
 **Design and roadmap:** [docs/design/README.md](docs/design/README.md)
 
-=======
-# The Chronicle
-
-A **dynastic life simulator first, game second**: a small medieval realm where families, marriages, inheritance, and personality-driven choices write their own history. The chronicle **observes** the simulation—it does not invent events.
-
->>>>>>> origin/main
 ## Phase 1 (this prototype)
 
 - Haldenmere county with three lordships and eight noble houses (~200 characters)
@@ -43,9 +36,4 @@ streamlit run app/streamlit_app.py
 
 ## Roadmap
 
-1. **World of people** — current
-2. Motivated characters (utility + plans)
-3. Relationships that matter (multi-axis, memories)
-4. Social intrigue (rumours, schemes, negotiations)
-5. Causal chronicle & biographies
-6. Simulation laboratory (batch runs, metrics)
+Implementation milestones and dependencies live in [docs/design/ROADMAP.md](docs/design/ROADMAP.md). Phase 1 (world of people) matches the prototype on `main`; agency and social systems follow stages B–F in that document.
