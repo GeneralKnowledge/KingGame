@@ -1,0 +1,124 @@
+from __future__ import annotations
+
+import streamlit as st
+
+from chronicle.generation.realm import generate_world
+from chronicle.history.chronicle import render_recent_chronicle
+from chronicle.persistence.sqlite_store import load_world, save_world
+from chronicle.simulation.engine import SimulationEngine
+
+
+def _ensure_state() -> None:
+    if "world" not in st.session_state:
+        loaded = load_world()
+        st.session_state.world = loaded or generate_world(seed=42, population_target=200)
+        st.session_state.engine = SimulationEngine(st.session_state.world)
+
+
+def _character_options():
+    world = st.session_state.world
+    living = sorted(world.living_characters(), key=lambda c: c.name)
+    return {f"{c.name} ({c.age_years}, {c.role})": c.id for c in living}
+
+
+def main() -> None:
+    st.set_page_config(page_title="The Chronicle", layout="wide")
+    st.title("The Chronicle")
+    st.caption("A living medieval realm — simulation first, spectacle second.")
+
+    _ensure_state()
+    world = st.session_state.world
+    engine: SimulationEngine = st.session_state.engine
+
+    col_time, col_save = st.columns([3, 1])
+    with col_time:
+        c1, c2, c3, c4, c5 = st.columns(5)
+        if c1.button(" +1 day"):
+            engine.tick()
+        if c2.button(" +7 days"):
+            engine.advance_days(7)
+        if c3.button(" +30 days"):
+            engine.advance_days(30)
+        if c4.button(" +1 year"):
+            engine.advance_days(365)
+        if c5.button("New world (seed 42)"):
+            st.session_state.world = generate_world(seed=42, population_target=200)
+            st.session_state.engine = SimulationEngine(st.session_state.world)
+            st.rerun()
+    with col_save:
+        if st.button("Save to SQLite"):
+            save_world(st.session_state.world)
+            st.success("Saved.")
+
+    year = world.day // 365
+    day_of_year = world.day % 365
+    living = len(world.living_characters())
+    st.metric(
+        "Realm date",
+        f"Year {year + 1}, day {day_of_year + 1}",
+        f"{living} living souls · {len(world.events)} recorded events",
+    )
+
+    left, right = st.columns([1, 1])
+
+    with left:
+        st.subheader("Living chronicle")
+        for line in render_recent_chronicle(world, limit=35):
+            st.write(line)
+
+    with right:
+        st.subheader("Follow a life")
+        options = _character_options()
+        if not options:
+            st.info("No living characters.")
+            return
+        label = st.selectbox("Character", list(options.keys()))
+        char = world.characters[options[label]]
+
+        st.markdown(f"**{char.name}** · {char.sex.value} · age {char.age_years}")
+        st.write(f"Role: {char.role} · House: {_house_label(world, char.house_id)}")
+        if char.spouse_id and char.spouse_id in world.characters:
+            st.write(f"Spouse: {world.characters[char.spouse_id].name}")
+        if char.parent_ids:
+            parents = [world.characters[pid].name for pid in char.parent_ids if pid in world.characters]
+            st.write(f"Parents: {', '.join(parents) or 'unknown'}")
+
+        st.write("Temperament (sample traits)")
+        trait_items = sorted(char.traits.items(), key=lambda x: -x[1])[:6]
+        for trait, value in trait_items:
+            st.progress(min(1.0, max(0.0, value)), text=f"{trait}: {value:.2f}")
+
+        st.subheader("Relationships (outgoing)")
+        rels = [
+            r
+            for k, r in world.relationships.items()
+            if r.from_id == char.id and (r.affection > 60 or r.resentment > 40 or r.trust < 40)
+        ]
+        rels.sort(key=lambda r: -(r.resentment + r.affection))
+        for rel in rels[:8]:
+            other = world.characters.get(rel.to_id)
+            if not other:
+                continue
+            st.write(
+                f"→ **{other.name}**: affection {rel.affection:.0f}, "
+                f"trust {rel.trust:.0f}, resentment {rel.resentment:.0f}"
+            )
+
+        st.subheader("Events involving this character")
+        related = [
+            e
+            for e in reversed(world.events)
+            if e.actor_id == char.id or e.target_id == char.id or char.id in e.participant_ids
+        ][:15]
+        for e in related:
+            st.caption(f"Day {e.day} · {e.kind.value}: {e.summary or '(no summary)'}")
+
+
+def _house_label(world, house_id: str | None) -> str:
+    if not house_id:
+        return "—"
+    return world.houses[house_id].name
+
+
+if __name__ == "__main__":
+    main()
