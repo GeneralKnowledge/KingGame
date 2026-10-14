@@ -32,54 +32,74 @@ def age_characters(world: WorldState) -> None:
 def process_deaths(world: WorldState, rng: random.Random) -> None:
     for char in list(world.living_characters()):
         if rng.random() < _death_probability(char.age_years):
-            char.alive = False
-            append_event(
-                world,
-                day=world.day,
-                kind=EventKind.DEATH,
-                actor_id=char.id,
-                effects={"age": char.age_years},
-                summary=f"{char.name} died at age {char.age_years}.",
-            )
-            resolve_inheritance(world, char.id)
+            _apply_death(world, char)
+
+
+def _apply_death(world: WorldState, char: Character) -> None:
+    char.alive = False
+    char.death_day = world.day
+    char.marital_status = MaritalStatus.WIDOWED
+
+    if char.spouse_id:
+        spouse = world.characters.get(char.spouse_id)
+        if spouse and spouse.alive:
+            spouse.marital_status = MaritalStatus.WIDOWED
+            spouse.spouse_id = None
+        char.spouse_id = None
+
+    append_event(
+        world,
+        day=world.day,
+        kind=EventKind.DEATH,
+        actor_id=char.id,
+        effects={"age": char.age_years},
+        summary=f"{char.name} died at age {char.age_years}.",
+    )
+    resolve_inheritance(world, char.id)
 
 
 def resolve_inheritance(world: WorldState, deceased_id: str) -> None:
     deceased = world.characters[deceased_id]
     house = world.houses.get(deceased.house_id) if deceased.house_id else None
 
-    if house and house.head_character_id == deceased_id:
-        heir = _pick_house_heir(world, deceased_id, house.id)
-        if heir:
-            house.head_character_id = heir.id
+    was_head = bool(house and house.head_character_id == deceased_id)
+    held_titles = any(t.holder_id == deceased_id for t in world.titles.values())
+
+    heir: Character | None = None
+    if was_head:
+        heir = _pick_house_heir(world, deceased_id, house.id)  # type: ignore[union-attr]
+
+    if heir is None and house and (was_head or held_titles):
+        heir = _pick_any_house_member(world, house.id, exclude_id=deceased_id)
+
+    if was_head and heir:
+        house.head_character_id = heir.id  # type: ignore[union-attr]
+
+    if heir and (held_titles or was_head):
+        _transfer_titles_from_deceased(world, deceased_id, heir.id)
+        if was_head:
             append_event(
                 world,
                 day=world.day,
                 kind=EventKind.SUCCESSION,
                 actor_id=heir.id,
-                causes=[e.id for e in world.events if e.actor_id == deceased_id][-1:]
-                if world.events
-                else [],
-                summary=f"{heir.name} succeeded {deceased.name} as head of {house.name}.",
+                causes=[deceased_id],
+                effects={"house_id": house.id if house else None},
+                summary=f"{heir.name} succeeded {deceased.name} as head of {house.name}.",  # type: ignore[union-attr]
             )
-            _transfer_house_head_title(world, house, heir.id)
+    elif was_head and heir is None:
+        house.head_character_id = None  # type: ignore[union-attr]
+        append_event(
+            world,
+            day=world.day,
+            kind=EventKind.SUCCESSION,
+            actor_id=None,
+            causes=[deceased_id],
+            effects={"house_id": house.id, "vacant": True},  # type: ignore[union-attr]
+            summary=f"{house.name} has no living heir after {deceased.name}'s death.",  # type: ignore[union-attr]
+        )
 
-    if deceased.title_id:
-        title = world.titles.get(deceased.title_id)
-        if title and title.kind == TitleKind.HOUSE_HEAD:
-            heir = _pick_house_heir(world, deceased_id, title.house_id or "")
-            if heir:
-                title.holder_id = heir.id
-                heir.title_id = title.id
-                append_event(
-                    world,
-                    day=world.day,
-                    kind=EventKind.INHERITANCE,
-                    actor_id=heir.id,
-                    causes=[deceased_id],
-                    effects={"title_name": title.name, "title_id": title.id},
-                    summary=f"{heir.name} inherited {title.name}.",
-                )
+    deceased.title_id = None
 
 
 def _pick_house_heir(world: WorldState, deceased_id: str, house_id: str) -> Character | None:
@@ -101,11 +121,31 @@ def _pick_house_heir(world: WorldState, deceased_id: str, house_id: str) -> Char
     return max(pool, key=lambda c: c.age_years)
 
 
-def _transfer_house_head_title(world: WorldState, house, heir_id: str) -> None:
+def _pick_any_house_member(
+    world: WorldState, house_id: str, *, exclude_id: str
+) -> Character | None:
+    members = [
+        c
+        for c in world.living_characters()
+        if c.house_id == house_id and c.id != exclude_id
+    ]
+    if not members:
+        return None
+    return max(members, key=lambda c: c.age_years)
+
+
+def _transfer_titles_from_deceased(
+    world: WorldState,
+    deceased_id: str,
+    heir_id: str,
+) -> None:
+    heir = world.characters[heir_id]
     for title in world.titles.values():
-        if title.house_id == house.id and title.kind == TitleKind.HOUSE_HEAD:
-            title.holder_id = heir_id
-            world.characters[heir_id].title_id = title.id
+        if title.holder_id != deceased_id:
+            continue
+        title.holder_id = heir_id
+        if title.kind == TitleKind.HOUSE_HEAD:
+            heir.title_id = title.id
 
 
 def process_births(world: WorldState, rng: random.Random) -> None:
@@ -115,7 +155,7 @@ def process_births(world: WorldState, rng: random.Random) -> None:
         if char.sex != Sex.FEMALE or not char.spouse_id or char.age_years < 18 or char.age_years > 42:
             continue
         spouse = world.characters.get(char.spouse_id)
-        if not spouse or not spouse.alive:
+        if not spouse or not spouse.alive or spouse.age_years < 18:
             continue
         if rng.random() > 0.08:
             continue
@@ -210,7 +250,6 @@ def _marriage_acceptance(
         return rng.random() < 0.3
     gap = abs(house_a.prestige - house_b.prestige)
     base = 0.55 - gap / 200
-    # Personality nudge
     base += (a.traits.get("sociable", 0.5) + b.traits.get("sociable", 0.5)) * 0.1
     base -= (a.traits.get("proud", 0.5) + b.traits.get("proud", 0.5)) * 0.05
     return rng.random() < max(0.15, min(0.9, base))

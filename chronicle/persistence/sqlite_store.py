@@ -5,6 +5,7 @@ import sqlite3
 from pathlib import Path
 
 from chronicle.models.world import WorldState
+from chronicle.persistence.migrate import apply_post_load_migrations, migrate_world_data
 from chronicle.world.ids import sync_id_counter_from_world
 
 DEFAULT_DB = Path("data/chronicle.db")
@@ -46,6 +47,8 @@ def load_world(path: Path | None = None) -> WorldState | None:
     if not row:
         return None
     data = json.loads(row[0])
+    data = migrate_world_data(data)
     world = WorldState.model_validate(data)
+    world = apply_post_load_migrations(world)
     sync_id_counter_from_world(world)
     return world

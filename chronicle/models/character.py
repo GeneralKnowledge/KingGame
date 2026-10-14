@@ -104,6 +104,7 @@ class Character(BaseModel):
         return (
             self.alive
             and self.spouse_id is None
+            and self.marital_status != MaritalStatus.MARRIED
             and 16 <= self.age_years <= 45
             and self.life_stage() in (LifeStage.YOUTH, LifeStage.ADULT)
         )

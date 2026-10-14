@@ -178,6 +178,11 @@ def _check_titles(world: WorldState) -> list[Violation]:
 def _check_house_heads(world: WorldState) -> list[Violation]:
     violations: list[Violation] = []
     for house in world.houses.values():
+        living_in_house = [
+            c for c in world.living_characters() if c.house_id == house.id
+        ]
+        if not living_in_house:
+            continue
         if house.head_character_id is None:
             violations.append(
                 Violation(

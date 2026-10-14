@@ -79,7 +79,7 @@ def _create_character(
         house_id=house_id,
         role=role,
         traits=_random_traits(rng),
-        birth_day=max(0, world.day - age * 365),
+        birth_day=world.day - age * 365,
     )
 
 
@@ -124,6 +124,7 @@ def _seed_kinship(
             age=child_age,
         )
         child.parent_ids = (head.id, spouse.id)
+        child.birth_day = max(head.birth_day, spouse.birth_day) + 16 * 365
         members.extend([child])
 
     remaining = max(0, count - len(members))
