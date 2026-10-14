@@ -11,6 +11,12 @@ class Sex(str, Enum):
     FEMALE = "female"
 
 
+class MaritalStatus(str, Enum):
+    SINGLE = "single"
+    MARRIED = "married"
+    WIDOWED = "widowed"
+
+
 class LifeStage(str, Enum):
     CHILD = "child"
     YOUTH = "youth"
@@ -75,6 +81,9 @@ class Character(BaseModel):
     house_id: str | None = None
     role: Role = "peasant"
     parent_ids: tuple[str, ...] = ()
+    birth_day: int = 0
+    death_day: int | None = None
+    marital_status: MaritalStatus = MaritalStatus.SINGLE
     spouse_id: str | None = None
     traits: dict[str, float] = Field(default_factory=dict)
     goals: list[Goal] = Field(default_factory=list)

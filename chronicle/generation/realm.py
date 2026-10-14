@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import random
 
-from chronicle.models.character import DEFAULT_TRAITS, Character, Sex
+from chronicle.models.character import DEFAULT_TRAITS, Character, MaritalStatus, Sex
 from chronicle.models.house import House, Title, TitleKind
 from chronicle.models.world import Realm, WorldState
 from chronicle.world.ids import allocate_id
@@ -79,6 +79,7 @@ def _create_character(
         house_id=house_id,
         role=role,
         traits=_random_traits(rng),
+        birth_day=max(0, world.day - age * 365),
     )
 
 
@@ -109,6 +110,8 @@ def _seed_kinship(
     )
     head.spouse_id = spouse.id
     spouse.spouse_id = head.id
+    head.marital_status = MaritalStatus.MARRIED
+    spouse.marital_status = MaritalStatus.MARRIED
     members.append(spouse)
 
     for _ in range(rng.randint(1, 4)):

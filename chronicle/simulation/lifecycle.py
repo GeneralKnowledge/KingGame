@@ -3,7 +3,7 @@ from __future__ import annotations
 import random
 
 from chronicle.history.log import append_event
-from chronicle.models.character import Character, Sex
+from chronicle.models.character import Character, MaritalStatus, Sex
 from chronicle.models.events import EventKind
 from chronicle.models.house import TitleKind
 from chronicle.models.world import WorldState
@@ -128,6 +128,7 @@ def process_births(world: WorldState, rng: random.Random) -> None:
             house_id=char.house_id,
             role="courtier",
             parent_ids=(char.id, spouse.id),
+            birth_day=world.day,
         )
         world.characters[child.id] = child
         append_event(
@@ -172,6 +173,8 @@ def process_marriages(world: WorldState, rng: random.Random) -> None:
             continue
         char.spouse_id = partner.id
         partner.spouse_id = char.id
+        char.marital_status = MaritalStatus.MARRIED
+        partner.marital_status = MaritalStatus.MARRIED
         paired.add(char.id)
         paired.add(partner.id)
         append_event(
