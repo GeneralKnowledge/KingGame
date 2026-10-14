@@ -5,6 +5,7 @@ import sqlite3
 from pathlib import Path
 
 from chronicle.models.world import WorldState
+from chronicle.world.ids import sync_id_counter_from_world
 
 DEFAULT_DB = Path("data/chronicle.db")
 
@@ -45,4 +46,6 @@ def load_world(path: Path | None = None) -> WorldState | None:
     if not row:
         return None
     data = json.loads(row[0])
-    return WorldState.model_validate(data)
+    world = WorldState.model_validate(data)
+    sync_id_counter_from_world(world)
+    return world

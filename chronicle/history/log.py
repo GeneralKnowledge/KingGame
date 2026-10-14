@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from chronicle.models.events import WorldEvent
 from chronicle.models.world import WorldState
-from chronicle.world.ids import new_id
+from chronicle.world.ids import allocate_id
 
 
 def append_event(
@@ -18,7 +18,7 @@ def append_event(
     summary: str = "",
 ) -> WorldEvent:
     event = WorldEvent(
-        id=new_id("evt"),
+        id=allocate_id(world, "evt"),
         day=day,
         kind=kind,
         actor_id=actor_id,

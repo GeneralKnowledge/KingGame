@@ -7,7 +7,7 @@ from chronicle.models.character import Character, Sex
 from chronicle.models.events import EventKind
 from chronicle.models.house import TitleKind
 from chronicle.models.world import WorldState
-from chronicle.world.ids import new_id
+from chronicle.world.ids import allocate_id
 
 
 def _death_probability(age: int) -> float:
@@ -121,7 +121,7 @@ def process_births(world: WorldState, rng: random.Random) -> None:
             continue
         child_sex = Sex.MALE if rng.random() < 0.5 else Sex.FEMALE
         child = Character(
-            id=new_id("char"),
+            id=allocate_id(world, "char"),
             name=_child_name(rng, child_sex),
             age_years=0,
             sex=child_sex,
