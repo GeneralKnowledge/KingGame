@@ -18,9 +18,16 @@ def age_characters(world: WorldState) -> None:
         char.age_years += 1
 
 
+def _population_pressure(world: WorldState) -> float:
+    return DEMOGRAPHY.population_pressure(len(world.living_characters()))
+
+
 def process_deaths(world: WorldState, rng: random.Random) -> None:
+    pressure = _population_pressure(world)
     for char in list(world.living_characters()):
-        if rng.random() < DEMOGRAPHY.daily_death_probability(char.age_years):
+        if rng.random() < DEMOGRAPHY.daily_death_probability(
+            char.age_years, population_pressure=pressure
+        ):
             _apply_death(world, char)
 
 
@@ -140,6 +147,7 @@ def _transfer_titles_from_deceased(
 def process_births(world: WorldState, rng: random.Random) -> None:
     if world.day % 30 != 0:
         return
+    pressure = _population_pressure(world)
     for char in world.living_characters():
         if char.sex != Sex.FEMALE or not char.spouse_id or char.age_years < 18 or char.age_years > 42:
             continue
@@ -149,7 +157,9 @@ def process_births(world: WorldState, rng: random.Random) -> None:
         since_last: int | None = None
         if char.last_birth_day is not None:
             since_last = world.day - char.last_birth_day
-        prob = DEMOGRAPHY.monthly_fertility_probability(char.age_years, since_last)
+        prob = DEMOGRAPHY.monthly_fertility_probability(
+            char.age_years, since_last, population_pressure=pressure
+        )
         if prob <= 0 or rng.random() > prob:
             continue
         child_sex = Sex.MALE if rng.random() < 0.5 else Sex.FEMALE
@@ -175,7 +185,7 @@ def process_births(world: WorldState, rng: random.Random) -> None:
             summary=f"{char.name} and {spouse.name} welcomed {child.name}.",
         )
         if rng.random() < DEMOGRAPHY.daily_death_probability(
-            char.age_years, childbirth_day=True
+            char.age_years, population_pressure=pressure, childbirth_day=True
         ):
             _apply_death(world, char)
 
@@ -190,6 +200,7 @@ def _child_name(rng: random.Random, sex: Sex) -> str:
 def process_marriages(world: WorldState, rng: random.Random) -> None:
     if world.day % 14 != 0:
         return
+    pressure = _population_pressure(world)
     singles = [c for c in world.living_characters() if c.is_marriageable()]
     rng.shuffle(singles)
     paired: set[str] = set()
@@ -207,7 +218,7 @@ def process_marriages(world: WorldState, rng: random.Random) -> None:
         if not candidates:
             continue
         partner = rng.choice(candidates)
-        if not _marriage_acceptance(world, rng, char, partner):
+        if not _marriage_acceptance(world, rng, char, partner, pressure):
             continue
         char.spouse_id = partner.id
         partner.spouse_id = char.id
@@ -240,6 +251,7 @@ def _marriage_acceptance(
     rng: random.Random,
     a: Character,
     b: Character,
+    population_pressure: float,
 ) -> bool:
     """Simple Phase 1 negotiation placeholder — families weigh prestige gap."""
     house_a = world.houses.get(a.house_id or "")
@@ -250,4 +262,5 @@ def _marriage_acceptance(
     base = 0.55 - gap / 200
     base += (a.traits.get("sociable", 0.5) + b.traits.get("sociable", 0.5)) * 0.1
     base -= (a.traits.get("proud", 0.5) + b.traits.get("proud", 0.5)) * 0.05
+    base *= DEMOGRAPHY.marriage_acceptance_multiplier(population_pressure)
     return rng.random() < max(0.15, min(0.9, base))

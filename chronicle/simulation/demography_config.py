@@ -25,6 +25,12 @@ class DemographyConfig:
     child_daily_under5: float = 0.00008
     childbirth_extra_daily: float = 0.012
 
+    # --- Soft carrying capacity (whole county) ---
+    realm_carrying_capacity: int = 250
+    pressure_mortality_strength: float = 0.85
+    pressure_fertility_strength: float = 0.65
+    pressure_marriage_strength: float = 0.45
+
     def fertility_age_factor(self, age_years: int) -> float:
         if age_years < self.fertility_min_age or age_years > self.fertility_max_age:
             return 0.0
@@ -43,21 +49,40 @@ class DemographyConfig:
         )
         return max(0.0, min(1.0, t))
 
+    def population_pressure(self, living_count: int) -> float:
+        cap = self.realm_carrying_capacity
+        if living_count <= cap:
+            return 0.0
+        excess = (living_count - cap) / cap
+        return excess / (1.0 + excess)
+
+    def fertility_density_multiplier(self, pressure: float) -> float:
+        return 1.0 / (1.0 + self.pressure_fertility_strength * pressure)
+
+    def mortality_density_multiplier(self, pressure: float) -> float:
+        return 1.0 + self.pressure_mortality_strength * pressure
+
+    def marriage_acceptance_multiplier(self, pressure: float) -> float:
+        return 1.0 / (1.0 + self.pressure_marriage_strength * pressure)
+
     def monthly_fertility_probability(
         self,
         age_years: int,
         days_since_last_birth: int | None,
+        population_pressure: float = 0.0,
     ) -> float:
         age_f = self.fertility_age_factor(age_years)
         if age_f <= 0:
             return 0.0
         spacing = self.birth_spacing_factor(days_since_last_birth)
-        return self.fertility_peak_monthly * age_f * spacing
+        density = self.fertility_density_multiplier(population_pressure)
+        return self.fertility_peak_monthly * age_f * spacing * density
 
     def daily_death_probability(
         self,
         age_years: int,
         *,
+        population_pressure: float = 0.0,
         childbirth_day: bool = False,
     ) -> float:
         if age_years == 0:
@@ -76,6 +101,7 @@ class DemographyConfig:
                 p += 0.008
         if childbirth_day:
             p += self.childbirth_extra_daily
+        p *= self.mortality_density_multiplier(population_pressure)
         return min(0.5, max(0.0, p))
 
 
