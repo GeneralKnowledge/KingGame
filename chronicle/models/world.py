@@ -15,7 +15,7 @@ class Realm(BaseModel):
 
 
 class WorldState(BaseModel):
-    schema_version: int = 1
+    schema_version: int = 2
     seed: int
     day: int = 0
     next_entity_id: int = 1

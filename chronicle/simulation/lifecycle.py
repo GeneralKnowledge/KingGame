@@ -7,6 +7,7 @@ from chronicle.models.character import Character, MaritalStatus, Sex
 from chronicle.models.events import EventKind
 from chronicle.models.house import TitleKind
 from chronicle.models.world import WorldState
+from chronicle.simulation.demography_config import DEMOGRAPHY
 from chronicle.world.ids import allocate_id
 
 
@@ -157,7 +158,11 @@ def process_births(world: WorldState, rng: random.Random) -> None:
         spouse = world.characters.get(char.spouse_id)
         if not spouse or not spouse.alive or spouse.age_years < 18:
             continue
-        if rng.random() > 0.08:
+        since_last: int | None = None
+        if char.last_birth_day is not None:
+            since_last = world.day - char.last_birth_day
+        prob = DEMOGRAPHY.monthly_fertility_probability(char.age_years, since_last)
+        if prob <= 0 or rng.random() > prob:
             continue
         child_sex = Sex.MALE if rng.random() < 0.5 else Sex.FEMALE
         child = Character(
@@ -171,6 +176,7 @@ def process_births(world: WorldState, rng: random.Random) -> None:
             birth_day=world.day,
         )
         world.characters[child.id] = child
+        char.last_birth_day = world.day
         append_event(
             world,
             day=world.day,
