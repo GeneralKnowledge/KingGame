@@ -7,19 +7,8 @@ from chronicle.models.character import Character, MaritalStatus, Sex
 from chronicle.models.events import EventKind
 from chronicle.models.house import TitleKind
 from chronicle.models.world import WorldState
+from chronicle.simulation.demography_config import DEMOGRAPHY
 from chronicle.world.ids import allocate_id
-
-
-def _death_probability(age: int) -> float:
-    if age < 40:
-        return 0.00005
-    if age < 55:
-        return 0.0002
-    if age < 70:
-        return 0.0008
-    if age < 85:
-        return 0.003
-    return 0.012
 
 
 def age_characters(world: WorldState) -> None:
@@ -29,9 +18,16 @@ def age_characters(world: WorldState) -> None:
         char.age_years += 1
 
 
+def _population_pressure(world: WorldState) -> float:
+    return DEMOGRAPHY.population_pressure(len(world.living_characters()))
+
+
 def process_deaths(world: WorldState, rng: random.Random) -> None:
+    pressure = _population_pressure(world)
     for char in list(world.living_characters()):
-        if rng.random() < _death_probability(char.age_years):
+        if rng.random() < DEMOGRAPHY.daily_death_probability(
+            char.age_years, population_pressure=pressure
+        ):
             _apply_death(world, char)
 
 
@@ -99,6 +95,17 @@ def resolve_inheritance(world: WorldState, deceased_id: str) -> None:
             summary=f"{house.name} has no living heir after {deceased.name}'s death.",  # type: ignore[union-attr]
         )
 
+    if any(t.holder_id == deceased_id for t in world.titles.values()):
+        if heir is None:
+            heir = _pick_realm_fallback(world, exclude_id=deceased_id)
+        if heir:
+            _transfer_titles_from_deceased(world, deceased_id, heir.id)
+            if house and house.head_character_id is None and any(
+                t.holder_id == heir.id and t.kind == TitleKind.HOUSE_HEAD
+                for t in world.titles.values()
+            ):
+                house.head_character_id = heir.id
+
     deceased.title_id = None
 
 
@@ -121,6 +128,19 @@ def _pick_house_heir(world: WorldState, deceased_id: str, house_id: str) -> Char
     return max(pool, key=lambda c: c.age_years)
 
 
+def _pick_realm_fallback(world: WorldState, *, exclude_id: str) -> Character | None:
+    pool = [
+        c
+        for c in world.living_characters()
+        if c.id != exclude_id and c.role in ("noble", "knight", "courtier")
+    ]
+    if not pool:
+        pool = [c for c in world.living_characters() if c.id != exclude_id]
+    if not pool:
+        return None
+    return max(pool, key=lambda c: c.age_years)
+
+
 def _pick_any_house_member(
     world: WorldState, house_id: str, *, exclude_id: str
 ) -> Character | None:
@@ -139,25 +159,84 @@ def _transfer_titles_from_deceased(
     deceased_id: str,
     heir_id: str,
 ) -> None:
-    heir = world.characters[heir_id]
-    for title in world.titles.values():
-        if title.holder_id != deceased_id:
-            continue
-        title.holder_id = heir_id
+    to_transfer = [t for t in world.titles.values() if t.holder_id == deceased_id]
+    for title in to_transfer:
+        assignee = heir_id
+        if title.kind == TitleKind.HOUSE_HEAD and title.house_id:
+            assignee = _pick_house_head_successor(
+                world, deceased_id, title.house_id, fallback_id=heir_id
+            )
+        title.holder_id = assignee
         if title.kind == TitleKind.HOUSE_HEAD:
-            heir.title_id = title.id
+            _sync_house_head_title_id(world, assignee)
+
+
+def _pick_house_head_successor(
+    world: WorldState,
+    deceased_id: str,
+    house_id: str,
+    *,
+    fallback_id: str,
+) -> str:
+    candidates: list[Character] = []
+    heir = _pick_house_heir(world, deceased_id, house_id)
+    if heir:
+        candidates.append(heir)
+    member = _pick_any_house_member(world, house_id, exclude_id=deceased_id)
+    if member and member not in candidates:
+        candidates.append(member)
+    for c in world.living_characters():
+        if c.house_id == house_id and c.id != deceased_id and c not in candidates:
+            candidates.append(c)
+    for c in candidates:
+        if not _holds_other_house_head(world, c.id, house_id):
+            return c.id
+    if not _holds_other_house_head(world, fallback_id, house_id):
+        return fallback_id
+    for c in world.living_characters():
+        if c.id != deceased_id and not _holds_other_house_head(world, c.id, house_id):
+            return c.id
+    return fallback_id
+
+
+def _holds_other_house_head(
+    world: WorldState, char_id: str, house_id: str
+) -> bool:
+    for title in world.titles.values():
+        if (
+            title.kind == TitleKind.HOUSE_HEAD
+            and title.holder_id == char_id
+            and title.house_id != house_id
+        ):
+            return True
+    return False
+
+
+def _sync_house_head_title_id(world: WorldState, char_id: str) -> None:
+    char = world.characters[char_id]
+    for title in world.titles.values():
+        if title.holder_id == char_id and title.kind == TitleKind.HOUSE_HEAD:
+            char.title_id = title.id
+            return
 
 
 def process_births(world: WorldState, rng: random.Random) -> None:
     if world.day % 30 != 0:
         return
+    pressure = _population_pressure(world)
     for char in world.living_characters():
         if char.sex != Sex.FEMALE or not char.spouse_id or char.age_years < 18 or char.age_years > 42:
             continue
         spouse = world.characters.get(char.spouse_id)
         if not spouse or not spouse.alive or spouse.age_years < 18:
             continue
-        if rng.random() > 0.08:
+        since_last: int | None = None
+        if char.last_birth_day is not None:
+            since_last = world.day - char.last_birth_day
+        prob = DEMOGRAPHY.monthly_fertility_probability(
+            char.age_years, since_last, population_pressure=pressure
+        )
+        if prob <= 0 or rng.random() > prob:
             continue
         child_sex = Sex.MALE if rng.random() < 0.5 else Sex.FEMALE
         child = Character(
@@ -171,6 +250,7 @@ def process_births(world: WorldState, rng: random.Random) -> None:
             birth_day=world.day,
         )
         world.characters[child.id] = child
+        char.last_birth_day = world.day
         append_event(
             world,
             day=world.day,
@@ -180,6 +260,10 @@ def process_births(world: WorldState, rng: random.Random) -> None:
             participant_ids=[spouse.id],
             summary=f"{char.name} and {spouse.name} welcomed {child.name}.",
         )
+        if rng.random() < DEMOGRAPHY.daily_death_probability(
+            char.age_years, population_pressure=pressure, childbirth_day=True
+        ):
+            _apply_death(world, char)
 
 
 def _child_name(rng: random.Random, sex: Sex) -> str:
@@ -192,6 +276,7 @@ def _child_name(rng: random.Random, sex: Sex) -> str:
 def process_marriages(world: WorldState, rng: random.Random) -> None:
     if world.day % 14 != 0:
         return
+    pressure = _population_pressure(world)
     singles = [c for c in world.living_characters() if c.is_marriageable()]
     rng.shuffle(singles)
     paired: set[str] = set()
@@ -206,10 +291,19 @@ def process_marriages(world: WorldState, rng: random.Random) -> None:
             and c.sex != char.sex
             and c.house_id != char.house_id
         ]
+        if not candidates and char.age_years >= 30:
+            candidates = [
+                c
+                for c in singles
+                if c.id not in paired
+                and c.id != char.id
+                and c.sex != char.sex
+                and c.house_id == char.house_id
+            ]
         if not candidates:
             continue
         partner = rng.choice(candidates)
-        if not _marriage_acceptance(world, rng, char, partner):
+        if not _marriage_acceptance(world, rng, char, partner, pressure):
             continue
         char.spouse_id = partner.id
         partner.spouse_id = char.id
@@ -242,6 +336,7 @@ def _marriage_acceptance(
     rng: random.Random,
     a: Character,
     b: Character,
+    population_pressure: float,
 ) -> bool:
     """Simple Phase 1 negotiation placeholder — families weigh prestige gap."""
     house_a = world.houses.get(a.house_id or "")
@@ -252,4 +347,5 @@ def _marriage_acceptance(
     base = 0.55 - gap / 200
     base += (a.traits.get("sociable", 0.5) + b.traits.get("sociable", 0.5)) * 0.1
     base -= (a.traits.get("proud", 0.5) + b.traits.get("proud", 0.5)) * 0.05
+    base *= DEMOGRAPHY.marriage_acceptance_multiplier(population_pressure)
     return rng.random() < max(0.15, min(0.9, base))

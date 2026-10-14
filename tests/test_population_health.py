@@ -1,5 +1,8 @@
+import pytest
+
 from chronicle.generation.realm import generate_world
 from chronicle.simulation.engine import SimulationEngine
+from chronicle.simulation.invariants import validate_world
 
 
 def _population_series(seed: int, years: int = 100) -> list[int]:
@@ -13,14 +16,36 @@ def _population_series(seed: int, years: int = 100) -> list[int]:
     return series
 
 
-def test_population_health_loose_bounds_seeds_0_to_9() -> None:
-    """Detect collapse or numeric runaway without tuning birth/death rates in A2."""
+@pytest.mark.slow
+def test_population_calibrated_seeds_0_to_9_hundred_years() -> None:
+    """Seeds 0–9 × 100 years: population band and zero invariant violations."""
+    checkpoints = (25, 50, 75, 100)
     for seed in range(10):
-        series = _population_series(seed)
-        final = series[-1]
-        assert min(series) >= 5, f"seed {seed} population collapsed"
-        assert final <= 1_000_000, f"seed {seed} final population {final} exceeds sanity cap"
-        assert max(series) <= 2_000_000, f"seed {seed} peak population too high"
+        world = generate_world(seed=seed, population_target=200)
+        engine = SimulationEngine(world)
+        series: list[int] = []
+        for year in range(101):
+            series.append(len(world.living_characters()))
+            if year < 100:
+                engine.advance_days(365)
+        for year in checkpoints:
+            pop = series[year]
+            assert pop >= 120, f"seed {seed} year {year} population {pop} below floor"
+            assert pop <= 450, f"seed {seed} year {year} population {pop} above ceiling"
+        violations = validate_world(world)
+        assert violations == [], f"seed {seed}: {violations[:3]}"
+
+
+def test_population_health_fast_3_seeds_30_years() -> None:
+    """Default-suite smoke: short runs, no invariant violations, loose population bounds."""
+    for seed in range(3):
+        world = generate_world(seed=seed, population_target=200)
+        SimulationEngine(world).advance_days(30 * 365)
+        living = len(world.living_characters())
+        assert living >= 80, f"seed {seed} population {living} collapsed"
+        assert living <= 320, f"seed {seed} population {living} runaway in 30y"
+        violations = validate_world(world)
+        assert violations == [], f"seed {seed}: {violations[:3]}"
 
 
 # Population findings (seeds 0-9, 100 years, target ~200):

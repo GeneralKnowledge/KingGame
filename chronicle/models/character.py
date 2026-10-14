@@ -82,6 +82,7 @@ class Character(BaseModel):
     role: Role = "peasant"
     parent_ids: tuple[str, ...] = ()
     birth_day: int = 0
+    last_birth_day: int | None = None
     death_day: int | None = None
     marital_status: MaritalStatus = MaritalStatus.SINGLE
     spouse_id: str | None = None

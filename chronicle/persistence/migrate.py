@@ -6,13 +6,16 @@ from chronicle.models.character import MaritalStatus
 from chronicle.models.world import WorldState
 from chronicle.world.ids import infer_next_entity_id
 
-CURRENT_SCHEMA_VERSION = 1
+CURRENT_SCHEMA_VERSION = 2
 
 
 def migrate_world_data(data: dict[str, Any]) -> dict[str, Any]:
     version = int(data.get("schema_version", 0))
     if version < 1:
         data = _migrate_to_v1(data)
+        version = 1
+    if version < 2:
+        data = _migrate_to_v2(data)
     return data
 
 
@@ -33,6 +36,14 @@ def _migrate_to_v1(data: dict[str, Any]) -> dict[str, Any]:
     data["schema_version"] = 1
     if "next_entity_id" not in data:
         data["next_entity_id"] = 1
+    return data
+
+
+def _migrate_to_v2(data: dict[str, Any]) -> dict[str, Any]:
+    for char in data.get("characters", {}).values():
+        if "last_birth_day" not in char:
+            char["last_birth_day"] = None
+    data["schema_version"] = 2
     return data
 
 
