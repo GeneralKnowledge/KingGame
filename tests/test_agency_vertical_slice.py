@@ -4,7 +4,8 @@ from chronicle.simulation.agency import is_agency_day_for, process_daily_agency
 from chronicle.simulation.engine import SimulationEngine
 from chronicle.simulation.invariants import validate_world
 from chronicle.world.rng import derive_rng
-from tests.fixtures.rivalry_world import build_rivalry_world
+from chronicle.events.resolver import resolve_social_action
+from tests.fixtures.rivalry_world import build_rivalry_world, _core_traits
 
 
 def _first_agency_day(world, char_id: str, start: int = 1) -> int:
@@ -67,6 +68,27 @@ def test_engine_tick_includes_agency_without_invariants() -> None:
     custom = [e for e in world.events if e.kind == EventKind.CUSTOM]
     assert custom or world.day == 14
     assert not validate_world(world)
+
+
+def test_target_responds_to_insult_with_event_id_cause() -> None:
+    world = build_rivalry_world()
+    world.day = 6
+    world.characters["char_bob"].traits = _core_traits(vengefulness=0.95)
+    resolve_social_action(
+        world,
+        "char_alice",
+        ActionKind.PUBLIC_INSULT,
+        "char_bob",
+        motive_snapshot={"public_insult:char_bob": 1.0},
+    )
+    initiative = [e for e in world.events if e.effects.get("phase") == "initiative"]
+    response = [e for e in world.events if e.effects.get("phase") == "response"]
+    assert len(initiative) == 1
+    assert len(response) == 1
+    assert response[0].actor_id == "char_bob"
+    assert response[0].target_id == "char_alice"
+    assert response[0].causes == [initiative[0].id]
+    assert response[0].effects.get("motive_snapshot")
 
 
 def test_motive_snapshot_affects_next_score() -> None:
