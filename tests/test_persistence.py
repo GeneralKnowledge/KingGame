@@ -37,8 +37,5 @@ def test_save_load_continue_matches_uninterrupted_run(tmp_path: Path) -> None:
     SimulationEngine(loaded).advance_days(total_days - midpoint)
 
     assert loaded.day == uninterrupted.day
-    assert len(loaded.events) == len(uninterrupted.events)
     assert loaded.next_entity_id == uninterrupted.next_entity_id
-    for i, (a, b) in enumerate(zip(loaded.events, uninterrupted.events, strict=True)):
-        assert a.id == b.id, f"event mismatch at index {i}"
-        assert a.kind == b.kind
+    assert _snapshot(loaded) == _snapshot(uninterrupted)
