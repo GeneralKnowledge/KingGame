@@ -3,7 +3,7 @@
 **Product:** KingGame  
 **Genre:** Dynastic life simulation / emergent history observer  
 **Inspiration:** Crusader Kings III (character drama and families), not its map scale  
-**Companion docs:** [SIMULATION_ARCHITECTURE.md](./SIMULATION_ARCHITECTURE.md) · [ROADMAP.md](./ROADMAP.md) · [DECISIONS.md](./DECISIONS.md)
+**Companion docs:** [SIMULATION_ARCHITECTURE.md](./SIMULATION_ARCHITECTURE.md) · [ROADMAP.md](./ROADMAP.md) · [DECISIONS.md](./DECISIONS.md) · [PERSONALITY_AND_CAST.md](./PERSONALITY_AND_CAST.md)
 
 ---
 
@@ -190,7 +190,7 @@ Detailed mechanics live in [SIMULATION_ARCHITECTURE.md](./SIMULATION_ARCHITECTUR
 | Layer | Examples | Persistence |
 |-------|----------|-------------|
 | Facts | age, sex, parentage, house, titles, alive | Authoritative |
-| Temperament | ambition, caution, compassion | Slow-changing |
+| Temperament | 8 core dimensions + optional tags (see [PERSONALITY_AND_CAST.md](./PERSONALITY_AND_CAST.md)) | Slow-changing |
 | Emotion | anger, grief, stress | Temporary |
 | Goals | gain title, protect sibling, revenge | Dynamic |
 | Beliefs | “Robert plots against me” (may be false) | Subjective |

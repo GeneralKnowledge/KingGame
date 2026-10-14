@@ -2,7 +2,9 @@
 
 Dependency-aware implementation milestones. Each milestone is independently reviewable and mergeable.
 
-**Design docs:** [GAME_DESIGN.md](./GAME_DESIGN.md) · [SIMULATION_ARCHITECTURE.md](./SIMULATION_ARCHITECTURE.md) · [CURRENT_STATE_AUDIT.md](./CURRENT_STATE_AUDIT.md) · [SIMULATION_EVALUATION.md](./SIMULATION_EVALUATION.md) · [DECISIONS.md](./DECISIONS.md)
+**Design docs:** [GAME_DESIGN.md](./GAME_DESIGN.md) · [SIMULATION_ARCHITECTURE.md](./SIMULATION_ARCHITECTURE.md) · [CURRENT_STATE_AUDIT.md](./CURRENT_STATE_AUDIT.md) · [SIMULATION_EVALUATION.md](./SIMULATION_EVALUATION.md) · [DECISIONS.md](./DECISIONS.md) · [PERSONALITY_AND_CAST.md](./PERSONALITY_AND_CAST.md)
+
+**Story-first track (traits, cast, childless succession):** see [PERSONALITY_AND_CAST.md](./PERSONALITY_AND_CAST.md). Landed as doc + B2 trait cores + A2c couple fertility + D1 claims + E1 chronicle ranking (after A2b demography).
 
 ---
 
