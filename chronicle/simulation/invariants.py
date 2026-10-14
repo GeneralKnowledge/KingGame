@@ -27,6 +27,7 @@ def validate_world(world: WorldState) -> list[Violation]:
     violations.extend(_check_ancestor_cycles(world))
     violations.extend(_check_temporal(world))
     violations.extend(_check_dead_characters(world))
+    violations.extend(_check_claims(world))
     return violations
 
 
@@ -54,7 +55,31 @@ def _check_duplicate_ids(world: WorldState) -> list[Violation]:
         register(tid, "title")
     for event in world.events:
         register(event.id, "event")
+    for claim_id in world.claims:
+        register(claim_id, "claim")
     register(world.realm.id, "realm")
+    return violations
+
+
+def _check_claims(world: WorldState) -> list[Violation]:
+    violations: list[Violation] = []
+    for claim in world.claims.values():
+        if claim.character_id not in world.characters:
+            violations.append(
+                Violation(
+                    "claim_holder_missing",
+                    f"Claim {claim.id} references missing character",
+                    (claim.id, claim.character_id),
+                )
+            )
+        if claim.title_id not in world.titles:
+            violations.append(
+                Violation(
+                    "claim_title_missing",
+                    f"Claim {claim.id} references missing title",
+                    (claim.id, claim.title_id),
+                )
+            )
     return violations
 
 

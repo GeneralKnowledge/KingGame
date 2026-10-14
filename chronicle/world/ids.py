@@ -42,6 +42,8 @@ def infer_next_entity_id(world: WorldState) -> int:
         max_seen = max(max_seen, _max_numeric_suffix(title_id))
     for event in world.events:
         max_seen = max(max_seen, _max_numeric_suffix(event.id))
+    for claim_id in world.claims:
+        max_seen = max(max_seen, _max_numeric_suffix(claim_id))
     max_seen = max(max_seen, _max_numeric_suffix(world.realm.id))
     return max(max_seen + 1, world.next_entity_id)
 
