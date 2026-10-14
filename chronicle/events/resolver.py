@@ -9,6 +9,7 @@ from chronicle.history.log import append_event
 from chronicle.models.events import EventKind
 from chronicle.models.world import WorldState
 from chronicle.social.dynamics import apply_action_deltas
+from chronicle.social.memory import record_social_memories
 
 
 @dataclass(frozen=True)
@@ -45,6 +46,7 @@ def resolve_social_action(
 
     deltas = apply_action_deltas(world, actor_id, target_id, action)
     summary = _format_summary(world, actor_id, target_id, action)
+    memory_ids: list[str] = []
     event = append_event(
         world,
         day=world.day,
@@ -61,7 +63,19 @@ def resolve_social_action(
         },
         summary=summary,
     )
+    memory_ids = record_social_memories(
+        world,
+        event=event,
+        actor_id=actor_id,
+        target_id=target_id,
+        action=action.value,
+        relationship_deltas=deltas,
+    )
+    if memory_ids:
+        event.effects["memory_ids"] = memory_ids
     goal_logic.complete_goals_after_action(actor, action.value, target_id)
+    if action == ActionKind.PUBLIC_INSULT:
+        goal_logic.refresh_goals(world, target, world.day)
 
     if (
         allow_response

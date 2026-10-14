@@ -6,6 +6,7 @@ from enum import Enum
 
 from chronicle.character_ai import goals as goal_logic
 from chronicle.character_ai.traits import trait_bias
+from chronicle.social import memory as memory_logic
 from chronicle.models.character import Character
 from chronicle.models.world import WorldState
 
@@ -104,6 +105,9 @@ def score_action(
         base += goal_logic.goal_utility_contribution(
             goal, action_key, target_id=target_id
         )
+    base += memory_logic.memory_utility_contribution(
+        actor, action_key, target_id=target_id
+    )
 
     return base
 

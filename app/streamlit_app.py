@@ -6,6 +6,11 @@ from chronicle.character_ai.traits import derived_highlights, normalize_core_tra
 from chronicle.generation.realm import generate_world
 from chronicle.history.chronicle import render_recent_chronicle
 from chronicle.history.story import story_importance
+from chronicle.history.threads import (
+    build_causal_thread,
+    format_thread_line,
+    recent_story_threads,
+)
 from chronicle.models.house import TitleKind
 from chronicle.persistence.sqlite_store import load_world, save_world
 from chronicle.simulation.engine import SimulationEngine
@@ -72,6 +77,15 @@ def main() -> None:
         for line in render_recent_chronicle(world, limit=35, named_cast_only=named_only):
             st.write(line)
 
+        st.subheader("Story threads")
+        threads = recent_story_threads(world, limit=4, min_length=2)
+        if not threads:
+            st.caption("No multi-step social threads yet — feuds and responses will appear here.")
+        for idx, thread in enumerate(threads, start=1):
+            with st.expander(f"Thread {idx} ({len(thread)} events)", expanded=idx == 1):
+                for line in [format_thread_line(world, e) for e in thread]:
+                    st.write(line)
+
     with right:
         st.subheader("Follow a life")
         options = _character_options()
@@ -115,6 +129,19 @@ def main() -> None:
             for claim in claims[:5]:
                 title = world.titles.get(claim.title_id)
                 st.caption(f"→ {title.name if title else claim.title_id} ({claim.reason})")
+
+        if char.memories:
+            st.subheader("Memories")
+            for mem in sorted(char.memories, key=lambda m: (-m.day, -m.severity))[:8]:
+                tags = ", ".join(mem.emotional_tags) if mem.emotional_tags else "—"
+                st.caption(
+                    f"Day {mem.day} · severity {mem.severity:.2f} · {tags}: {mem.summary}"
+                )
+                if mem.source_event_id:
+                    thread = build_causal_thread(world, mem.source_event_id, max_nodes=6)
+                    if len(thread) > 1:
+                        for line in [format_thread_line(world, e) for e in thread]:
+                            st.text(f"  {line}")
 
         st.subheader("Relationships (outgoing)")
         rels = [
