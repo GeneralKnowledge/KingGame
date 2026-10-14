@@ -27,15 +27,15 @@ Command: `python -m pytest -v` from repository root.
 
 ### Milestone A2 status (on `a2-lifecycle-integrity`)
 
-| Item | Status at task 1 start |
-|------|-------------------------|
-| String-seeded RNG (`derive_rng`) | Pending (task 2) |
-| `WorldState.next_entity_id` / save-load ID safety | Pending (task 3) |
-| `validate_world` invariant checker | Pending (task 4) |
-| Widowhood, `death_day`, title/lordship sync | Pending (task 5) |
-| Persistence equivalence tests | Pending (task 6) |
-| Population health harness | Pending (task 7) |
-| `python -m chronicle.run` | Pending (task 8) |
+| Item | Status (A2 complete on `a2-lifecycle-integrity`) |
+|------|-----------------------------------------------------|
+| String-seeded RNG (`derive_rng`) | Implemented |
+| `WorldState.next_entity_id` / save-load ID safety | Implemented |
+| `validate_world` invariant checker | Implemented |
+| Widowhood, `death_day`, title/lordship sync, `schema_version` | Implemented |
+| Persistence equivalence tests | Implemented |
+| Population health loose-bound test | Implemented |
+| `python -m chronicle.run` | Implemented |
 
 ---
 
