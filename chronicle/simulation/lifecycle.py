@@ -7,8 +7,11 @@ from chronicle.models.character import Character, MaritalStatus, Sex
 from chronicle.models.events import EventKind
 from chronicle.models.house import TitleKind
 from chronicle.models.world import WorldState
+from chronicle.character_ai.traits import trait_bias
 from chronicle.simulation.demography_config import DEMOGRAPHY
+from chronicle.simulation.succession import handle_succession_drama
 from chronicle.world.ids import allocate_id
+from chronicle.world.rng import derive_rng
 
 
 def age_characters(world: WorldState) -> None:
@@ -105,6 +108,16 @@ def resolve_inheritance(world: WorldState, deceased_id: str) -> None:
                 for t in world.titles.values()
             ):
                 house.head_character_id = heir.id
+
+    final_heir_id = heir.id if heir else None
+    if house and house.head_character_id and house.head_character_id != deceased_id:
+        final_heir_id = house.head_character_id
+    handle_succession_drama(
+        world,
+        deceased_id,
+        heir_id=final_heir_id,
+        was_head=was_head,
+    )
 
     deceased.title_id = None
 
@@ -236,6 +249,7 @@ def process_births(world: WorldState, rng: random.Random) -> None:
         prob = DEMOGRAPHY.monthly_fertility_probability(
             char.age_years, since_last, population_pressure=pressure
         )
+        prob *= char.fertility_pair_multiplier
         if prob <= 0 or rng.random() > prob:
             continue
         child_sex = Sex.MALE if rng.random() < 0.5 else Sex.FEMALE
@@ -311,6 +325,7 @@ def process_marriages(world: WorldState, rng: random.Random) -> None:
         partner.marital_status = MaritalStatus.MARRIED
         paired.add(char.id)
         paired.add(partner.id)
+        _assign_couple_fertility(world, char, partner)
         append_event(
             world,
             day=world.day,
@@ -323,6 +338,19 @@ def process_marriages(world: WorldState, rng: random.Random) -> None:
             summary=f"{char.name} of { _house_name(world, char.house_id) } married "
             f"{partner.name} of { _house_name(world, partner.house_id) }.",
         )
+
+
+def _assign_couple_fertility(world: WorldState, a: Character, b: Character) -> None:
+    ids = sorted([a.id, b.id])
+    rng = derive_rng(world.seed, world.day, f"couple_fertility:{ids[0]}:{ids[1]}")
+    mult = rng.lognormvariate(0.0, 0.42)
+    mult = max(0.12, min(2.2, mult))
+    a.fertility_pair_multiplier = mult
+    b.fertility_pair_multiplier = mult
+    if mult < 0.32:
+        for char in (a, b):
+            if "infertile" not in char.tags:
+                char.tags.append("infertile")
 
 
 def _house_name(world: WorldState, house_id: str | None) -> str:
@@ -345,7 +373,6 @@ def _marriage_acceptance(
         return rng.random() < 0.3
     gap = abs(house_a.prestige - house_b.prestige)
     base = 0.55 - gap / 200
-    base += (a.traits.get("sociable", 0.5) + b.traits.get("sociable", 0.5)) * 0.1
-    base -= (a.traits.get("proud", 0.5) + b.traits.get("proud", 0.5)) * 0.05
+    base += trait_bias("marriage_accept", a.traits) + trait_bias("marriage_accept", b.traits)
     base *= DEMOGRAPHY.marriage_acceptance_multiplier(population_pressure)
     return rng.random() < max(0.15, min(0.9, base))

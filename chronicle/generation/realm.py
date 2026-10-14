@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import random
 
-from chronicle.models.character import DEFAULT_TRAITS, Character, MaritalStatus, Sex
+from chronicle.character_ai.traits import CORE_TRAITS, normalize_core_traits
+from chronicle.models.character import Character, MaritalStatus, Sex
 from chronicle.models.house import House, Title, TitleKind
 from chronicle.models.world import Realm, WorldState
 from chronicle.world.ids import allocate_id
@@ -52,7 +53,7 @@ COUNTY_NAME = "Haldenmere"
 
 
 def _random_traits(rng: random.Random) -> dict[str, float]:
-    return {trait: rng.uniform(0.15, 0.85) for trait in DEFAULT_TRAITS}
+    return {trait: rng.uniform(0.15, 0.85) for trait in CORE_TRAITS}
 
 
 def _pick_name(rng: random.Random, sex: Sex) -> str:
@@ -244,5 +245,8 @@ def generate_world(seed: int, population_target: int = 200) -> WorldState:
                 if other.sex == head.sex and other.age_years >= head.age_years - 3:
                     rel.envy = rng.uniform(20, 60)
                     rel.resentment = rng.uniform(10, 45)
+
+    for char in world.characters.values():
+        char.traits = normalize_core_traits(char.traits)
 
     return world

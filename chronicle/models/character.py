@@ -87,6 +87,8 @@ class Character(BaseModel):
     marital_status: MaritalStatus = MaritalStatus.SINGLE
     spouse_id: str | None = None
     traits: dict[str, float] = Field(default_factory=dict)
+    tags: list[str] = Field(default_factory=list)
+    fertility_pair_multiplier: float = Field(default=1.0, ge=0.0, le=3.0)
     goals: list[Goal] = Field(default_factory=list)
     memories: list[Memory] = Field(default_factory=list)
     alive: bool = True
