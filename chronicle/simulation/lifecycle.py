@@ -22,7 +22,7 @@ def _death_probability(age: int) -> float:
     return 0.012
 
 
-def age_characters(world: WorldState, rng: random.Random) -> None:
+def age_characters(world: WorldState) -> None:
     if world.day % 365 != 0:
         return
     for char in world.living_characters():

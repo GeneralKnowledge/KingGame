@@ -6,6 +6,7 @@ from chronicle.models.character import DEFAULT_TRAITS, Character, Sex
 from chronicle.models.house import House, Title, TitleKind
 from chronicle.models.world import Realm, WorldState
 from chronicle.world.ids import new_id, reset_id_counter
+from chronicle.world.rng import derive_rng
 
 
 FIRST_NAMES_M = [
@@ -126,7 +127,7 @@ def _seed_kinship(
 
 def generate_world(seed: int, population_target: int = 200) -> WorldState:
     reset_id_counter()
-    rng = random.Random(seed)
+    rng = derive_rng(seed, 0, "generation")
 
     county_title = Title(
         id=new_id("title"),

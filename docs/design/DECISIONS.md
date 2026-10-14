@@ -135,11 +135,13 @@ Significant design and architecture decisions with defaults, rationale, and timi
 
 ## D12 — Determinism
 
-**Default:** **Strict** for given seed and version tag. Any UI intervention breaks determinism by design (separate seed channel).
+**Default:** **Strict** for given seed, schema version, and code version. Any UI intervention breaks determinism by design (separate seed channel).
 
-RNG: `Random(seed + day + actor_slot)` documented per module.
+RNG: `random.Random(f"{seed}:{day}:{module}")` via `chronicle.world.rng.derive_rng`. Lifecycle modules use distinct names (`lifecycle.death`, `lifecycle.marriage`, `lifecycle.birth`); generation uses `generation` at day `0`.
 
-**When:** A3 codifies; tests enforce.
+**Note:** Changing `schema_version` or RNG scheme invalidates reproducibility of older saves and baseline event logs.
+
+**When:** Enforced from A2; extended in A3 for actor-scoped streams if needed.
 
 ---
 

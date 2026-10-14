@@ -74,7 +74,7 @@ Legend: ✅ working · ⚠️ incomplete/superficial · 🧩 stub/disconnected �
 | `Goal`, `Memory` on `Character` | 🧩 | Schema exists; simulation never writes goals/memories |
 | `WorldEvent` append-only log | ✅ | `history/log.py`, events accumulate in `world.events` |
 | SQLite save/load | ⚠️ | Serialises entire `WorldState` as JSON; no migrations, single slot |
-| Deterministic RNG per day | ✅ | `Random(world.seed + world.day)` in `SimulationEngine` |
+| Deterministic RNG per day | ✅ | `derive_rng(seed, day, module)` in `chronicle/world/rng.py` (A2) |
 
 ### Realm generation
 
