@@ -2,10 +2,11 @@ from __future__ import annotations
 
 import random
 
-from chronicle.models.character import DEFAULT_TRAITS, Character, Sex
+from chronicle.models.character import DEFAULT_TRAITS, Character, MaritalStatus, Sex
 from chronicle.models.house import House, Title, TitleKind
 from chronicle.models.world import Realm, WorldState
-from chronicle.world.ids import new_id, reset_id_counter
+from chronicle.world.ids import allocate_id
+from chronicle.world.rng import derive_rng
 
 
 FIRST_NAMES_M = [
@@ -61,6 +62,7 @@ def _pick_name(rng: random.Random, sex: Sex) -> str:
 
 def _create_character(
     rng: random.Random,
+    world: WorldState,
     *,
     house_id: str | None,
     role: Character.model_fields["role"].annotation,  # type: ignore[name-defined]
@@ -70,13 +72,14 @@ def _create_character(
     if sex is None:
         sex = Sex.MALE if rng.random() < 0.52 else Sex.FEMALE
     return Character(
-        id=new_id("char"),
+        id=allocate_id(world, "char"),
         name=_pick_name(rng, sex),
         age_years=age,
         sex=sex,
         house_id=house_id,
         role=role,
         traits=_random_traits(rng),
+        birth_day=world.day - age * 365,
     )
 
 
@@ -91,45 +94,60 @@ def _seed_kinship(
     head_age = rng.randint(38, 58)
     head_sex = Sex.MALE if rng.random() < 0.75 else Sex.FEMALE
     head = _create_character(
-        rng, house_id=house.id, role="noble", age=head_age, sex=head_sex
+        rng, world, house_id=house.id, role="noble", age=head_age, sex=head_sex
     )
     members.append(head)
     house.head_character_id = head.id
 
     spouse_sex = Sex.FEMALE if head.sex == Sex.MALE else Sex.MALE
     spouse = _create_character(
-        rng, house_id=house.id, role="noble", age=head_age - rng.randint(0, 8), sex=spouse_sex
+        rng,
+        world,
+        house_id=house.id,
+        role="noble",
+        age=head_age - rng.randint(0, 8),
+        sex=spouse_sex,
     )
     head.spouse_id = spouse.id
     spouse.spouse_id = head.id
+    head.marital_status = MaritalStatus.MARRIED
+    spouse.marital_status = MaritalStatus.MARRIED
     members.append(spouse)
 
     for _ in range(rng.randint(1, 4)):
         child_age = rng.randint(2, min(28, head_age - 18))
         child = _create_character(
             rng,
+            world,
             house_id=house.id,
             role="noble" if child_age >= 18 else "courtier",
             age=child_age,
         )
         child.parent_ids = (head.id, spouse.id)
+        child.birth_day = max(head.birth_day, spouse.birth_day) + 16 * 365
         members.extend([child])
 
     remaining = max(0, count - len(members))
     for _ in range(remaining):
         role = rng.choice(["courtier", "knight", "servant", "clergy"])
         age = rng.randint(16, 55)
-        members.append(_create_character(rng, house_id=house.id, role=role, age=age))
+        members.append(_create_character(rng, world, house_id=house.id, role=role, age=age))
 
     return members
 
 
 def generate_world(seed: int, population_target: int = 200) -> WorldState:
-    reset_id_counter()
-    rng = random.Random(seed)
+    rng = derive_rng(seed, 0, "generation")
+
+    world = WorldState(
+        seed=seed,
+        day=0,
+        next_entity_id=1,
+        realm=Realm(id="pending", name=COUNTY_NAME, county_title_id="pending"),
+    )
 
     county_title = Title(
-        id=new_id("title"),
+        id=allocate_id(world, "title"),
         name=COUNTY_NAME,
         kind=TitleKind.COUNTY,
     )
@@ -137,7 +155,7 @@ def generate_world(seed: int, population_target: int = 200) -> WorldState:
     for name in LORDSHIP_NAMES:
         lordships.append(
             Title(
-                id=new_id("title"),
+                id=allocate_id(world, "title"),
                 name=name,
                 kind=TitleKind.LORDSHIP,
                 parent_title_id=county_title.id,
@@ -148,7 +166,7 @@ def generate_world(seed: int, population_target: int = 200) -> WorldState:
     for i, house_name in enumerate(HOUSE_NAMES):
         houses.append(
             House(
-                id=new_id("house"),
+                id=allocate_id(world, "house"),
                 name=f"House {house_name}",
                 motto=rng.choice(
                     [
@@ -163,15 +181,13 @@ def generate_world(seed: int, population_target: int = 200) -> WorldState:
             )
         )
 
-    realm = Realm(id=new_id("realm"), name=COUNTY_NAME, county_title_id=county_title.id)
-
-    world = WorldState(
-        seed=seed,
-        day=0,
-        realm=realm,
-        titles={county_title.id: county_title, **{t.id: t for t in lordships}},
-        houses={h.id: h for h in houses},
+    world.realm = Realm(
+        id=allocate_id(world, "realm"),
+        name=COUNTY_NAME,
+        county_title_id=county_title.id,
     )
+    world.titles = {county_title.id: county_title, **{t.id: t for t in lordships}}
+    world.houses = {h.id: h for h in houses}
 
     per_house = max(12, population_target // len(houses))
     all_chars: list[Character] = []
@@ -184,6 +200,7 @@ def generate_world(seed: int, population_target: int = 200) -> WorldState:
         all_chars.append(
             _create_character(
                 rng,
+                world,
                 house_id=house.id,
                 role="peasant",
                 age=rng.randint(4, 70),
@@ -198,7 +215,7 @@ def generate_world(seed: int, population_target: int = 200) -> WorldState:
         if house.head_character_id:
             head = world.characters[house.head_character_id]
             title = Title(
-                id=new_id("title"),
+                id=allocate_id(world, "title"),
                 name=f"{house.name} Head",
                 kind=TitleKind.HOUSE_HEAD,
                 holder_id=head.id,

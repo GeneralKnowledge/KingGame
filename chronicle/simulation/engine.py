@@ -1,9 +1,8 @@
 from __future__ import annotations
 
-import random
-
 from chronicle.models.world import WorldState
 from chronicle.simulation import lifecycle
+from chronicle.world.rng import derive_rng
 
 
 class SimulationEngine:
@@ -11,18 +10,23 @@ class SimulationEngine:
 
     def __init__(self, world: WorldState) -> None:
         self.world = world
-        self._rng = random.Random(world.seed + world.day)
-
-    def _refresh_rng(self) -> None:
-        self._rng = random.Random(self.world.seed + self.world.day)
 
     def tick(self) -> None:
-        self._refresh_rng()
-        self.world.day += 1
-        lifecycle.age_characters(self.world, self._rng)
-        lifecycle.process_deaths(self.world, self._rng)
-        lifecycle.process_marriages(self.world, self._rng)
-        lifecycle.process_births(self.world, self._rng)
+        world = self.world
+        seed, day = world.seed, world.day
+        world.day += 1
+        day = world.day
+
+        lifecycle.age_characters(world)
+        lifecycle.process_deaths(
+            world, derive_rng(seed, day, "lifecycle.death")
+        )
+        lifecycle.process_marriages(
+            world, derive_rng(seed, day, "lifecycle.marriage")
+        )
+        lifecycle.process_births(
+            world, derive_rng(seed, day, "lifecycle.birth")
+        )
 
     def advance_days(self, days: int) -> None:
         for _ in range(days):

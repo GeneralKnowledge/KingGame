@@ -15,8 +15,10 @@ class Realm(BaseModel):
 
 
 class WorldState(BaseModel):
+    schema_version: int = 1
     seed: int
     day: int = 0
+    next_entity_id: int = 1
     realm: Realm
     characters: dict[str, Character] = Field(default_factory=dict)
     houses: dict[str, House] = Field(default_factory=dict)

@@ -183,7 +183,7 @@ Maintain `event_graph: parent -> children` in memory or SQLite side table for O(
 
 Daily tick (configurable sub-steps):
 
-1. Increment `day`; derive RNG from `seed + day`
+1. Increment `day`; derive per-module RNG via `derive_rng(seed, day, module)` (string seed `f"{seed}:{day}:{module}"`)
 2. **Emotion decay** (B2)
 3. **Decision phase** — staggered: e.g. 1/7 of adult population per day for performance
 4. **Resolver queue** — process all proposals in deterministic priority order (actor_id tie-break)
