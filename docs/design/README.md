@@ -7,6 +7,7 @@
 | [SIMULATION_ARCHITECTURE.md](./SIMULATION_ARCHITECTURE.md) | Modules, tick pipeline, event/causality model |
 | [ROADMAP.md](./ROADMAP.md) | Milestones A1–F4 with dependencies and acceptance criteria |
 | [DECISIONS.md](./DECISIONS.md) | Decision log with defaults |
+| [PERSONALITY_AND_CAST.md](./PERSONALITY_AND_CAST.md) | Hybrid traits, cast tiers, story focus |
 | [SIMULATION_EVALUATION.md](./SIMULATION_EVALUATION.md) | Metrics, experiments, quality gates |
 
 Start with **CURRENT_STATE_AUDIT** and **ROADMAP** § First implementation recommendation.

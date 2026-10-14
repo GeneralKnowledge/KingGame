@@ -3,6 +3,7 @@ from __future__ import annotations
 from pydantic import BaseModel, Field
 
 from chronicle.models.character import Character
+from chronicle.models.claim import Claim
 from chronicle.models.events import WorldEvent
 from chronicle.models.house import House, Title
 from chronicle.models.relationship import DirectedRelationship
@@ -15,7 +16,7 @@ class Realm(BaseModel):
 
 
 class WorldState(BaseModel):
-    schema_version: int = 2
+    schema_version: int = 3
     seed: int
     day: int = 0
     next_entity_id: int = 1
@@ -25,6 +26,7 @@ class WorldState(BaseModel):
     titles: dict[str, Title] = Field(default_factory=dict)
     relationships: dict[str, DirectedRelationship] = Field(default_factory=dict)
     events: list[WorldEvent] = Field(default_factory=list)
+    claims: dict[str, Claim] = Field(default_factory=dict)
 
     def living_characters(self) -> list[Character]:
         return [c for c in self.characters.values() if c.alive]
