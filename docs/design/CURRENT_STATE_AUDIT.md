@@ -1,6 +1,6 @@
 # KingGame — Current State Audit
 
-**Audit date:** 2026-10-13  
+**Audit date:** 2026-10-14 (baseline for milestone A2)  
 **Repository:** https://github.com/GeneralKnowledge/KingGame
 
 This audit distinguishes **branch reality** from **marketing names**. The product vision uses **KingGame**; the in-repo prototype package is named `the-chronicle` / **The Chronicle** on the Streamlit title bar.
@@ -9,24 +9,37 @@ This audit distinguishes **branch reality** from **marketing names**. The produc
 
 | Branch | State |
 |--------|--------|
-| `main` | Single commit: `README.md` containing `# KingGame` only. **No simulation code.** |
-| `cursor/chronicle-phase1-prototype-bdeb` (PR #1) | Phase 1 scaffold: models, generation, lifecycle simulation, chronicle, SQLite, Streamlit, tests. **Not merged to `main` at audit time.** |
+| `main` | Phase 1 prototype merged (PR #1 + design docs PR #2): models, generation, lifecycle simulation, chronicle, SQLite, Streamlit, `docs/design/*`, four smoke tests. |
+| `a2-lifecycle-integrity` | Milestone A2 work: lifecycle invariants, RNG, ID persistence, save/load safety (in progress). |
 
-**Audit basis:** Files and tests on `cursor/chronicle-phase1-prototype-bdeb` (current workspace), with `main` noted explicitly.
+**Audit basis:** Code and tests on `main` unless a row explicitly refers to A2 branch progress.
 
-### Tests executed (2026-10-13)
+### Tests executed (2026-10-14, A2 task 1 baseline on `main`)
 
-Command: `python3 -m pytest -v` from repository root.
+Command: `python -m pytest -v` from repository root.
 
 | Result | Detail |
 |--------|--------|
 | **4 passed** | `test_generate_world_population_in_range`, `test_simulation_is_deterministic_for_fixed_seed`, `test_long_run_produces_lifecycle_events`, `test_random_character_has_family_context` |
-| Runtime | ~0.86s |
-| Not run | Streamlit UI, SQLite round-trip, property-based tests (Hypothesis installed but unused) |
+| Runtime | ~0.89s |
+| **Executed** | Full pytest suite above |
+| **Inspected only (not executed)** | Streamlit UI manual session, SQLite save/load round-trip, Hypothesis property tests, headless batch CLI |
+
+### Milestone A2 status (on `a2-lifecycle-integrity`)
+
+| Item | Status at task 1 start |
+|------|-------------------------|
+| String-seeded RNG (`derive_rng`) | Pending (task 2) |
+| `WorldState.next_entity_id` / save-load ID safety | Pending (task 3) |
+| `validate_world` invariant checker | Pending (task 4) |
+| Widowhood, `death_day`, title/lordship sync | Pending (task 5) |
+| Persistence equivalence tests | Pending (task 6) |
+| Population health harness | Pending (task 7) |
+| `python -m chronicle.run` | Pending (task 8) |
 
 ---
 
-## Repository structure (prototype branch)
+## Repository structure (`main`)
 
 ```
 app/streamlit_app.py          # Observer UI
@@ -143,7 +156,7 @@ Legend: ✅ working · ⚠️ incomplete/superficial · 🧩 stub/disconnected �
 **Technical debt to schedule (not blockers for design):**
 
 1. **Naming:** KingGame vs The Chronicle vs package `the-chronicle`.
-2. **Global ID counter:** `reset_id_counter()` on world gen — correct for reproducibility; event IDs during sim use same counter (OK if documented).
+2. **Global ID counter:** Process-global counter not persisted in `WorldState` — **A2 task 3** addresses save/load duplication risk.
 3. **`causes` semantics:** Mix of entity IDs and event IDs — normalise in milestone A3.
 4. **In-memory event list:** Will need pagination / archival for multi-century runs (Stage F).
 5. **No headless CLI** for batch simulation yet (Stage F2).
@@ -166,7 +179,7 @@ Legend: ✅ working · ⚠️ incomplete/superficial · 🧩 stub/disconnected �
 
 ## What the game actually does today (honest summary)
 
-On the prototype branch, KingGame is a **deterministic demography and genealogy toy** with flavour text. It produces births, deaths, marriages, and house-head successions across a fixed initial realm. Personalities and relationships are **mostly decorative**. Nothing chooses actions from motives; drama is incidental, not emergent from competing goals.
+On `main`, KingGame is a **deterministic demography and genealogy toy** with flavour text. It produces births, deaths, marriages, and house-head successions across a fixed initial realm. Personalities and relationships are **mostly decorative**. Nothing chooses actions from motives; drama is incidental, not emergent from competing goals.
 
 That is an appropriate **Stage A foundation**, not yet the product vision.
 
