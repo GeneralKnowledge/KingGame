@@ -42,10 +42,8 @@ def test_insult_loop_produces_event_and_relationship_delta() -> None:
     assert deltas.get("target_to_actor", {}).get("resentment", 0) > 0
     after = world.get_relationship(target_id, actor_id).resentment
     assert after > before
-    assert not any(
-        g.kind == "settle_score" and g.target_id == target_id
-        for g in world.characters[actor_id].goals
-    )
+    bob = world.characters[target_id]
+    assert any(m.actor_id == actor_id and "humiliation" in m.emotional_tags for m in bob.memories)
     assert not validate_world(world)
 
 
