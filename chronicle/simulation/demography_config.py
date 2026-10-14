@@ -17,6 +17,14 @@ class DemographyConfig:
     min_birth_spacing_days: int = 540  # ~18 months
     full_birth_spacing_days: int = 900  # ~30 months until spacing penalty fully gone
 
+    # --- Mortality (daily probabilities) ---
+    adult_death_floor: float = 0.00003
+    adult_death_age_scale: float = 0.0000012
+    infant_daily_year0: float = 0.0018
+    infant_daily_year1: float = 0.00035
+    child_daily_under5: float = 0.00008
+    childbirth_extra_daily: float = 0.012
+
     def fertility_age_factor(self, age_years: int) -> float:
         if age_years < self.fertility_min_age or age_years > self.fertility_max_age:
             return 0.0
@@ -45,6 +53,30 @@ class DemographyConfig:
             return 0.0
         spacing = self.birth_spacing_factor(days_since_last_birth)
         return self.fertility_peak_monthly * age_f * spacing
+
+    def daily_death_probability(
+        self,
+        age_years: int,
+        *,
+        childbirth_day: bool = False,
+    ) -> float:
+        if age_years == 0:
+            p = self.infant_daily_year0
+        elif age_years == 1:
+            p = self.infant_daily_year1
+        elif age_years < 5:
+            p = self.child_daily_under5
+        else:
+            p = self.adult_death_floor
+            if age_years > 25:
+                p += (age_years - 25) * self.adult_death_age_scale
+            if age_years >= 70:
+                p += 0.004
+            if age_years >= 85:
+                p += 0.008
+        if childbirth_day:
+            p += self.childbirth_extra_daily
+        return min(0.5, max(0.0, p))
 
 
 DEMOGRAPHY = DemographyConfig()

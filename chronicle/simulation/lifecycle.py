@@ -11,18 +11,6 @@ from chronicle.simulation.demography_config import DEMOGRAPHY
 from chronicle.world.ids import allocate_id
 
 
-def _death_probability(age: int) -> float:
-    if age < 40:
-        return 0.00005
-    if age < 55:
-        return 0.0002
-    if age < 70:
-        return 0.0008
-    if age < 85:
-        return 0.003
-    return 0.012
-
-
 def age_characters(world: WorldState) -> None:
     if world.day % 365 != 0:
         return
@@ -32,7 +20,7 @@ def age_characters(world: WorldState) -> None:
 
 def process_deaths(world: WorldState, rng: random.Random) -> None:
     for char in list(world.living_characters()):
-        if rng.random() < _death_probability(char.age_years):
+        if rng.random() < DEMOGRAPHY.daily_death_probability(char.age_years):
             _apply_death(world, char)
 
 
@@ -186,6 +174,10 @@ def process_births(world: WorldState, rng: random.Random) -> None:
             participant_ids=[spouse.id],
             summary=f"{char.name} and {spouse.name} welcomed {child.name}.",
         )
+        if rng.random() < DEMOGRAPHY.daily_death_probability(
+            char.age_years, childbirth_day=True
+        ):
+            _apply_death(world, char)
 
 
 def _child_name(rng: random.Random, sex: Sex) -> str:
