@@ -95,6 +95,17 @@ def resolve_inheritance(world: WorldState, deceased_id: str) -> None:
             summary=f"{house.name} has no living heir after {deceased.name}'s death.",  # type: ignore[union-attr]
         )
 
+    if any(t.holder_id == deceased_id for t in world.titles.values()):
+        if heir is None:
+            heir = _pick_realm_fallback(world, exclude_id=deceased_id)
+        if heir:
+            _transfer_titles_from_deceased(world, deceased_id, heir.id)
+            if house and house.head_character_id is None and any(
+                t.holder_id == heir.id and t.kind == TitleKind.HOUSE_HEAD
+                for t in world.titles.values()
+            ):
+                house.head_character_id = heir.id
+
     deceased.title_id = None
 
 
@@ -117,6 +128,19 @@ def _pick_house_heir(world: WorldState, deceased_id: str, house_id: str) -> Char
     return max(pool, key=lambda c: c.age_years)
 
 
+def _pick_realm_fallback(world: WorldState, *, exclude_id: str) -> Character | None:
+    pool = [
+        c
+        for c in world.living_characters()
+        if c.id != exclude_id and c.role in ("noble", "knight", "courtier")
+    ]
+    if not pool:
+        pool = [c for c in world.living_characters() if c.id != exclude_id]
+    if not pool:
+        return None
+    return max(pool, key=lambda c: c.age_years)
+
+
 def _pick_any_house_member(
     world: WorldState, house_id: str, *, exclude_id: str
 ) -> Character | None:
@@ -135,13 +159,65 @@ def _transfer_titles_from_deceased(
     deceased_id: str,
     heir_id: str,
 ) -> None:
-    heir = world.characters[heir_id]
-    for title in world.titles.values():
-        if title.holder_id != deceased_id:
-            continue
-        title.holder_id = heir_id
+    to_transfer = [t for t in world.titles.values() if t.holder_id == deceased_id]
+    for title in to_transfer:
+        assignee = heir_id
+        if title.kind == TitleKind.HOUSE_HEAD and title.house_id:
+            assignee = _pick_house_head_successor(
+                world, deceased_id, title.house_id, fallback_id=heir_id
+            )
+        title.holder_id = assignee
         if title.kind == TitleKind.HOUSE_HEAD:
-            heir.title_id = title.id
+            _sync_house_head_title_id(world, assignee)
+
+
+def _pick_house_head_successor(
+    world: WorldState,
+    deceased_id: str,
+    house_id: str,
+    *,
+    fallback_id: str,
+) -> str:
+    candidates: list[Character] = []
+    heir = _pick_house_heir(world, deceased_id, house_id)
+    if heir:
+        candidates.append(heir)
+    member = _pick_any_house_member(world, house_id, exclude_id=deceased_id)
+    if member and member not in candidates:
+        candidates.append(member)
+    for c in world.living_characters():
+        if c.house_id == house_id and c.id != deceased_id and c not in candidates:
+            candidates.append(c)
+    for c in candidates:
+        if not _holds_other_house_head(world, c.id, house_id):
+            return c.id
+    if not _holds_other_house_head(world, fallback_id, house_id):
+        return fallback_id
+    for c in world.living_characters():
+        if c.id != deceased_id and not _holds_other_house_head(world, c.id, house_id):
+            return c.id
+    return fallback_id
+
+
+def _holds_other_house_head(
+    world: WorldState, char_id: str, house_id: str
+) -> bool:
+    for title in world.titles.values():
+        if (
+            title.kind == TitleKind.HOUSE_HEAD
+            and title.holder_id == char_id
+            and title.house_id != house_id
+        ):
+            return True
+    return False
+
+
+def _sync_house_head_title_id(world: WorldState, char_id: str) -> None:
+    char = world.characters[char_id]
+    for title in world.titles.values():
+        if title.holder_id == char_id and title.kind == TitleKind.HOUSE_HEAD:
+            char.title_id = title.id
+            return
 
 
 def process_births(world: WorldState, rng: random.Random) -> None:

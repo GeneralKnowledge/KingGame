@@ -9,7 +9,7 @@ class DemographyConfig:
     """Single source of truth for A2b population regulation parameters."""
 
     # --- Fertility (monthly probability scale) ---
-    fertility_peak_monthly: float = 0.14
+    fertility_peak_monthly: float = 0.082
     fertility_peak_age: int = 26
     fertility_min_age: int = 18
     fertility_max_age: int = 42
@@ -20,16 +20,16 @@ class DemographyConfig:
     # --- Mortality (daily probabilities) ---
     adult_death_floor: float = 0.00003
     adult_death_age_scale: float = 0.0000012
-    infant_daily_year0: float = 0.0018
-    infant_daily_year1: float = 0.00035
-    child_daily_under5: float = 0.00008
+    infant_daily_year0: float = 0.00092
+    infant_daily_year1: float = 0.00024
+    child_daily_under5: float = 0.000062
     childbirth_extra_daily: float = 0.012
 
     # --- Soft carrying capacity (whole county) ---
-    realm_carrying_capacity: int = 250
-    pressure_mortality_strength: float = 0.85
-    pressure_fertility_strength: float = 0.65
-    pressure_marriage_strength: float = 0.45
+    realm_carrying_capacity: int = 212
+    pressure_mortality_strength: float = 1.22
+    pressure_fertility_strength: float = 0.82
+    pressure_marriage_strength: float = 0.58
 
     def fertility_age_factor(self, age_years: int) -> float:
         if age_years < self.fertility_min_age or age_years > self.fertility_max_age:
