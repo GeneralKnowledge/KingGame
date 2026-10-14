@@ -215,6 +215,15 @@ def process_marriages(world: WorldState, rng: random.Random) -> None:
             and c.sex != char.sex
             and c.house_id != char.house_id
         ]
+        if not candidates and char.age_years >= 30:
+            candidates = [
+                c
+                for c in singles
+                if c.id not in paired
+                and c.id != char.id
+                and c.sex != char.sex
+                and c.house_id == char.house_id
+            ]
         if not candidates:
             continue
         partner = rng.choice(candidates)
