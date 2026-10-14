@@ -21,3 +21,7 @@ include = ["chronicle*"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
+markers = [
+    "slow: multi-seed long simulation runs (excluded from default pytest)",
+]
+addopts = "-m 'not slow'"
