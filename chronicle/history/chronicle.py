@@ -33,6 +33,26 @@ def render_chronicle_entry(world: WorldState, event: WorldEvent) -> str:
     return f"Day {event.day}: {event.kind.value} involving {actor}."
 
 
-def render_recent_chronicle(world: WorldState, limit: int = 40) -> list[str]:
-    recent = world.events[-limit:]
-    return [render_chronicle_entry(world, e) for e in reversed(recent)]
+def render_recent_chronicle(
+    world: WorldState,
+    limit: int = 40,
+    *,
+    named_cast_only: bool = False,
+) -> list[str]:
+    from chronicle.history.story import event_significance, is_named_cast
+
+    pool = world.events[- max(limit * 3, 120) :]
+    scored: list[tuple[float, int, WorldEvent]] = []
+    for idx, event in enumerate(pool):
+        if named_cast_only:
+            ids = [
+                event.actor_id,
+                event.target_id,
+                *event.participant_ids,
+            ]
+            if not any(i and is_named_cast(world, i) for i in ids):
+                continue
+        scored.append((event_significance(world, event), idx, event))
+    scored.sort(key=lambda x: (-x[0], -x[2].day, -x[1]))
+    top = scored[:limit]
+    return [render_chronicle_entry(world, e) for _, _, e in top]

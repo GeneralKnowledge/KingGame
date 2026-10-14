@@ -1,6 +1,7 @@
 import pytest
 
 from chronicle.generation.realm import generate_world
+from chronicle.models.events import EventKind
 from chronicle.simulation.engine import SimulationEngine
 from chronicle.simulation.invariants import validate_world
 
@@ -34,6 +35,22 @@ def test_population_calibrated_seeds_0_to_9_hundred_years() -> None:
             assert pop <= 450, f"seed {seed} year {year} population {pop} above ceiling"
         violations = validate_world(world)
         assert violations == [], f"seed {seed}: {violations[:3]}"
+
+
+@pytest.mark.slow
+def test_childless_succession_drama_in_some_houses() -> None:
+    """At least one house across seeds sees childless-line succession drama in 100y."""
+    drama_houses = 0
+    for seed in range(10):
+        world = generate_world(seed=seed, population_target=200)
+        SimulationEngine(world).advance_days(100 * 365)
+        for event in world.events:
+            if event.kind != EventKind.SUCCESSION:
+                continue
+            if event.effects.get("childless") or event.effects.get("disputed"):
+                drama_houses += 1
+                break
+    assert drama_houses >= 1
 
 
 def test_population_health_fast_3_seeds_30_years() -> None:

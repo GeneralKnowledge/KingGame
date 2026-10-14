@@ -2,8 +2,11 @@ from __future__ import annotations
 
 import streamlit as st
 
+from chronicle.character_ai.traits import derived_highlights, normalize_core_traits
 from chronicle.generation.realm import generate_world
 from chronicle.history.chronicle import render_recent_chronicle
+from chronicle.history.story import story_importance
+from chronicle.models.house import TitleKind
 from chronicle.persistence.sqlite_store import load_world, save_world
 from chronicle.simulation.engine import SimulationEngine
 
@@ -62,8 +65,11 @@ def main() -> None:
     left, right = st.columns([1, 1])
 
     with left:
+        st.subheader("Realm hierarchy")
+        _render_hierarchy(world)
         st.subheader("Living chronicle")
-        for line in render_recent_chronicle(world, limit=35):
+        named_only = st.checkbox("Named cast only", value=False)
+        for line in render_recent_chronicle(world, limit=35, named_cast_only=named_only):
             st.write(line)
 
     with right:
@@ -83,10 +89,23 @@ def main() -> None:
             parents = [world.characters[pid].name for pid in char.parent_ids if pid in world.characters]
             st.write(f"Parents: {', '.join(parents) or 'unknown'}")
 
-        st.write("Temperament (sample traits)")
-        trait_items = sorted(char.traits.items(), key=lambda x: -x[1])[:6]
+        st.caption(f"Story importance: {story_importance(world, char.id):.2f}")
+        if char.tags:
+            st.write("Tags:", ", ".join(char.tags))
+        highlights = derived_highlights(char.traits)
+        if highlights:
+            st.write("Highlights:", ", ".join(highlights))
+        st.write("Core temperament")
+        cores = normalize_core_traits(char.traits)
+        trait_items = sorted(cores.items(), key=lambda x: -x[1])[:8]
         for trait, value in trait_items:
             st.progress(min(1.0, max(0.0, value)), text=f"{trait}: {value:.2f}")
+        claims = [c for c in world.claims.values() if c.character_id == char.id]
+        if claims:
+            st.write("Claims:")
+            for claim in claims[:5]:
+                title = world.titles.get(claim.title_id)
+                st.caption(f"→ {title.name if title else claim.title_id} ({claim.reason})")
 
         st.subheader("Relationships (outgoing)")
         rels = [
@@ -112,6 +131,21 @@ def main() -> None:
         ][:15]
         for e in related:
             st.caption(f"Day {e.day} · {e.kind.value}: {e.summary or '(no summary)'}")
+
+
+def _render_hierarchy(world) -> None:
+    county = world.titles.get(world.realm.county_title_id)
+    if county:
+        holder = world.characters.get(county.holder_id or "")
+        st.write(f"**County:** {county.name} — {holder.name if holder else 'vacant'}")
+    for title in sorted(world.titles.values(), key=lambda t: t.name):
+        if title.kind != TitleKind.LORDSHIP:
+            continue
+        holder = world.characters.get(title.holder_id or "")
+        st.write(f"  Lordship: {title.name} — {holder.name if holder else 'vacant'}")
+    for house in sorted(world.houses.values(), key=lambda h: h.name):
+        head = world.characters.get(house.head_character_id or "")
+        st.write(f"  House {house.name} — {head.name if head else 'vacant'}")
 
 
 def _house_label(world, house_id: str | None) -> str:
