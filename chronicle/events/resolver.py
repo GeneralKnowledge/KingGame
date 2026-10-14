@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+import random
 from dataclasses import dataclass
 
 from chronicle.character_ai import goals as goal_logic
-from chronicle.character_ai.utility import ActionKind
+from chronicle.character_ai.utility import ActionKind, choose_reaction
 from chronicle.history.log import append_event
 from chronicle.models.events import EventKind
 from chronicle.models.world import WorldState
@@ -24,6 +25,8 @@ def resolve_social_action(
     target_id: str | None,
     *,
     motive_snapshot: dict[str, float] | None = None,
+    causes: list[str] | None = None,
+    allow_response: bool = True,
 ) -> ResolveOutcome:
     actor = world.characters.get(actor_id)
     if not actor or not actor.alive:
@@ -48,15 +51,41 @@ def resolve_social_action(
         kind=EventKind.CUSTOM,
         actor_id=actor_id,
         target_id=target_id,
+        causes=causes or [],
         effects={
             "action": action.value,
             "relationship_deltas": deltas,
             "motive_snapshot": motive_snapshot or {},
             "outcome_status": "success",
+            "phase": "initiative" if allow_response else "response",
         },
         summary=summary,
     )
     goal_logic.complete_goals_after_action(actor, action.value, target_id)
+
+    if (
+        allow_response
+        and action == ActionKind.PUBLIC_INSULT
+        and target.role in {"noble", "knight", "courtier"}
+        and target.age_years >= 16
+    ):
+        response_rng = random.Random(
+            f"{world.seed}:{world.day}:agency:response:{target_id}:{event.id}"
+        )
+        react_action, react_target, react_snapshot = choose_reaction(
+            world, target, actor_id, response_rng
+        )
+        if react_action != ActionKind.WAIT and react_target:
+            resolve_social_action(
+                world,
+                target_id,
+                react_action,
+                react_target,
+                motive_snapshot=react_snapshot,
+                causes=[event.id],
+                allow_response=False,
+            )
+
     return ResolveOutcome(True, "success", event.id)
 
 

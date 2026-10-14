@@ -152,3 +152,21 @@ def choose_action(
     }
     action, target_id = _softmax_choice(options, rng)
     return action, target_id, snapshot
+
+
+def choose_reaction(
+    world: WorldState,
+    reactor: Character,
+    provoker_id: str,
+    rng: random.Random,
+) -> tuple[ActionKind, str | None, dict[str, float]]:
+    """Immediate response to a provocation: counter-insult or absorb (wait)."""
+    options: list[tuple[ActionKind, str | None, float]] = []
+    wait_score = score_action(world, reactor, ActionKind.WAIT, None) + 0.05
+    options.append((ActionKind.WAIT, None, wait_score))
+    counter_score = score_action(world, reactor, ActionKind.PUBLIC_INSULT, provoker_id)
+    options.append((ActionKind.PUBLIC_INSULT, provoker_id, counter_score))
+    options.sort(key=lambda x: (x[0].value, x[1] or ""))
+    snapshot = {f"{a.value}:{t or '-'}": s for a, t, s in options}
+    action, target_id = _softmax_choice(options, rng, temperature=0.35)
+    return action, target_id, snapshot
