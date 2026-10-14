@@ -100,6 +100,15 @@ def main() -> None:
         trait_items = sorted(cores.items(), key=lambda x: -x[1])[:8]
         for trait, value in trait_items:
             st.progress(min(1.0, max(0.0, value)), text=f"{trait}: {value:.2f}")
+        if char.goals:
+            st.write("Active goals:")
+            for goal in sorted(char.goals, key=lambda g: -g.priority)[:5]:
+                target_label = ""
+                if goal.target_id and goal.target_id in world.characters:
+                    target_label = f" → {world.characters[goal.target_id].name}"
+                elif goal.target_id and goal.target_id in world.houses:
+                    target_label = f" → {world.houses[goal.target_id].name}"
+                st.caption(f"{goal.kind}{target_label} (priority {goal.priority:.2f})")
         claims = [c for c in world.claims.values() if c.character_id == char.id]
         if claims:
             st.write("Claims:")

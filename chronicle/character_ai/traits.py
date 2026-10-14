@@ -61,6 +61,18 @@ ACTION_BIAS_WEIGHTS: dict[str, dict[str, float]] = {
         "patience": 0.2,
         "vengefulness": -0.3,
     },
+    "public_insult": {
+        "vengefulness": 0.35,
+        "ambition": 0.2,
+        "compassion": -0.25,
+        "sociability": 0.1,
+    },
+    "private_apology": {
+        "compassion": 0.35,
+        "patience": 0.2,
+        "vengefulness": -0.3,
+        "pride": -0.15,
+    },
 }
 
 

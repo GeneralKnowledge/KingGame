@@ -374,5 +374,16 @@ def _marriage_acceptance(
     gap = abs(house_a.prestige - house_b.prestige)
     base = 0.55 - gap / 200
     base += trait_bias("marriage_accept", a.traits) + trait_bias("marriage_accept", b.traits)
+    rel_ab = world.get_relationship(a.id, b.id)
+    rel_ba = world.get_relationship(b.id, a.id)
+    base += (rel_ab.affection + rel_ba.affection - 100.0) / 400.0
+    base += (rel_ab.trust + rel_ba.trust - 100.0) / 500.0
+    base -= (rel_ab.resentment + rel_ba.resentment) / 350.0
+    for char in (a, b):
+        for goal in char.goals:
+            if goal.kind == "seek_alliance":
+                base += 0.08 * goal.priority
+            elif goal.kind == "press_claim":
+                base += 0.05 * goal.priority
     base *= DEMOGRAPHY.marriage_acceptance_multiplier(population_pressure)
     return rng.random() < max(0.15, min(0.9, base))

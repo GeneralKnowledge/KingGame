@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from chronicle.models.world import WorldState
+from chronicle.simulation import agency as agency_phase
 from chronicle.simulation import lifecycle
 from chronicle.world.rng import derive_rng
 
@@ -17,6 +18,9 @@ class SimulationEngine:
         world.day += 1
         day = world.day
 
+        agency_phase.process_daily_agency(
+            world, derive_rng(seed, day, "agency")
+        )
         lifecycle.age_characters(world)
         lifecycle.process_deaths(
             world, derive_rng(seed, day, "lifecycle.death")
